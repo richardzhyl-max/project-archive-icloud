@@ -1,4 +1,4 @@
-import { applyEvent, applySnapshot, CATALOG_NAME, decodeEvent, decodeSnapshot, emptyCatalog, MAX_CATALOG_BYTES, normalizeCatalog, recordsFor, SCHEMA, shortcutURL } from './catalog.js';
+import { applyEvent, applySnapshot, CATALOG_NAME, decodeEvent, decodeSnapshot, emptyCatalog, MAX_CATALOG_BYTES, normalizeCatalog, projectShortcutURL, recordsFor, SCHEMA, shortcutURL } from './catalog.js';
 import { readCatalog, updateCatalog } from './store.js';
 
 const $ = id => document.getElementById(id);
@@ -12,6 +12,7 @@ let savedCatalog;
 let activeProject = null;
 let demo = false;
 let configured = false;
+let usingUnifiedShortcut = false;
 let editingRecord = null;
 let callbackQueue = Promise.resolve();
 
@@ -28,10 +29,17 @@ function notice(message = '', error = false) {
   $('notice').hidden = !message;
 }
 
-function runShortcut(name, input) {
+function actionURL(command) {
+  if (usingUnifiedShortcut) return projectShortcutURL(command);
+  if (command.action === 'archive') return shortcutURL(archiveName);
+  if (command.action === 'open') return shortcutURL(openName, command.path);
+  return shortcutURL(manageName, command);
+}
+
+function runShortcut(command) {
   if (demo) { notice('当前是示例预览。退出示例后，可以建立自己的档案。'); return; }
   if (!configured) { $('setup').showModal(); return; }
-  window.location.href = shortcutURL(name, input);
+  window.location.href = actionURL(command);
 }
 
 function empty(title, detail) {
@@ -41,6 +49,7 @@ function empty(title, detail) {
 }
 
 function render() {
+  for (const id of ['archive', 'archive-here']) $(id).href = actionURL({ action: 'archive' });
   const showWelcome = !configured && !demo && !Object.keys(catalog.projects).length;
   $('welcome').hidden = !showWelcome;
   $('home').hidden = showWelcome || activeProject !== null;
@@ -95,8 +104,9 @@ function renderTimeline() {
     if (record.original !== record.title) info.append(node('p', 'muted original', record.original));
     if (record.note) info.append(node('p', 'entry-note', record.note));
     const actions = node('div', 'entry-actions');
-    const open = node('a', 'outline', '打开原件'); open.href = shortcutURL(openName, record.path);
-    open.addEventListener('click', event => { event.preventDefault(); runShortcut(openName, record.path); });
+    const openCommand = { action: 'open', path: record.path };
+    const open = node('a', 'outline', '打开原件'); open.href = actionURL(openCommand);
+    open.addEventListener('click', event => { event.preventDefault(); runShortcut(openCommand); });
     const edit = node('button', 'quiet', '编辑'); edit.type = 'button';
     edit.addEventListener('click', () => openEditor(record));
     actions.append(open, edit); row.append(time, info, actions); group.append(row);
@@ -124,14 +134,22 @@ async function handleCallback() {
   history.replaceState(null, '', location.pathname + location.search);
   try {
     if (demo) { demo = false; catalog = savedCatalog; }
+    const fromUnifiedShortcut = hash.has('snapshot') && hash.get('workflow') === 'unified';
     let projectId, message;
     if (hash.has('snapshot')) {
       const snapshot = await decodeSnapshot(hash.get('snapshot'));
       const recordId = hash.get('record');
-      if (!Object.hasOwn(snapshot.records, recordId)) throw new Error('清单中缺少本次归档记录。');
-      projectId = snapshot.records[recordId].project_id;
+      if (recordId !== null) {
+        if (!Object.hasOwn(snapshot.records, recordId)) throw new Error('清单中缺少本次归档记录。');
+        projectId = snapshot.records[recordId].project_id;
+        message = '归档成功，已更新完整时间线。';
+      } else {
+        if (!fromUnifiedShortcut) throw new Error('清单中缺少本次归档记录。');
+        projectId = hash.get('project');
+        if (projectId !== null && !Object.values(snapshot.projects).includes(projectId)) throw new Error('清单中缺少这个项目。');
+        message = projectId === null ? '已打开项目档案。' : '项目记录已更新。';
+      }
       catalog = await updateCatalog(current => applySnapshot(current, snapshot));
-      message = '归档成功，已更新完整时间线。';
     } else {
       const event = decodeEvent(hash.get('event'));
       catalog = await updateCatalog(current => applyEvent(current, event));
@@ -140,6 +158,11 @@ async function handleCallback() {
     }
     configured = true;
     localStorage.setItem('archive-configured', 'yes');
+    if (fromUnifiedShortcut) {
+      usingUnifiedShortcut = true;
+      localStorage.setItem('archive-unified-shortcut', 'yes');
+    }
+    if ($('setup').open) $('setup').close();
     activeProject = projectId;
     $('search').value = ''; render();
     notice(message);
@@ -172,7 +195,7 @@ $('editor-form').addEventListener('submit', event => {
   const command = editingRecord
     ? { action: 'edit', id: editingRecord.id, title: name, note: $('editor-note').value.trim() }
     : { action: 'project', name };
-  $('editor').close(); runShortcut(manageName, command);
+  $('editor').close(); runShortcut(command);
 });
 
 $('cancel-edit').addEventListener('click', () => $('editor').close());
@@ -180,20 +203,16 @@ $('new-project').addEventListener('click', () => openEditor());
 $('back').addEventListener('click', () => { activeProject = null; render(); $('home-title').focus(); });
 $('search').addEventListener('input', renderTimeline);
 for (const id of ['archive', 'archive-here']) {
-  $(id).href = shortcutURL(archiveName);
-  $(id).addEventListener('click', event => { event.preventDefault(); runShortcut(archiveName); });
+  $(id).addEventListener('click', event => { event.preventDefault(); runShortcut({ action: 'archive' }); });
 }
+for (const link of document.querySelectorAll('[data-open-archive]')) link.href = projectShortcutURL();
 for (const id of ['import-button', 'import-timeline', 'import-setup']) $(id).addEventListener('click', chooseCatalog);
-$('start-button').addEventListener('click', () => $('setup').showModal());
 $('guide-button').addEventListener('click', () => $('guide').showModal());
 $('reconfigure').addEventListener('click', () => { $('guide').close(); $('setup').showModal(); });
 $('setup-done').addEventListener('click', () => {
   configured = true; localStorage.setItem('archive-configured', 'yes');
+  usingUnifiedShortcut = false; localStorage.removeItem('archive-unified-shortcut');
   $('setup').close(); render();
-});
-$('copy-address').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(new URL('./', location.href).href); $('copy-address').textContent = '已复制'; }
-  catch { $('setup-message').textContent = '请长按上方网址，选择复制。'; }
 });
 $('export-button').addEventListener('click', () => {
   if (demo) { notice('示例内容不需要导出。'); return; }
@@ -231,8 +250,11 @@ async function offline() {
 }
 
 async function start() {
-  $('site-address').textContent = new URL('./', location.href).href;
-  try { configured = localStorage.getItem('archive-configured') === 'yes'; catalog = await readCatalog(); }
+  try {
+    configured = localStorage.getItem('archive-configured') === 'yes';
+    usingUnifiedShortcut = localStorage.getItem('archive-unified-shortcut') === 'yes';
+    catalog = await readCatalog();
+  }
   catch (error) { notice(error.message, true); }
   render(); await handleCallback(); offline();
 }

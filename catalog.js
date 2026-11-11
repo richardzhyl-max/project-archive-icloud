@@ -156,3 +156,7 @@ export function shortcutURL(name, input) {
   return 'shortcuts://run-shortcut?name=' + encodeURIComponent(name) +
     (input === undefined ? '' : '&input=text&text=' + encodeURIComponent(typeof input === 'string' ? input : JSON.stringify(input)));
 }
+
+export function projectShortcutURL(command) {
+  return shortcutURL('iCloud项目档案', command === undefined ? undefined : 'project-archive-command:' + JSON.stringify(command));
+}

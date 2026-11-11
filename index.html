@@ -24,7 +24,12 @@
       <div class="welcome-copy"><span class="eyebrow">自己的文件，自己的 iCloud</span>
         <h1>把每一步，<br>留在项目里。</h1>
         <p class="muted">归档一份文件，留下一次进展。<br>原件和记录清单保存在你自己的 iCloud 云盘。</p>
-        <div class="button-row"><button class="primary" id="start-button" type="button">开始设置 <span aria-hidden="true">↗</span></button><button class="outline" id="demo-button" type="button">先看看效果</button></div>
+        <p class="muted">首次安装时，选一次 iCloud 云盘里的「项目档案」文件夹。</p>
+        <div class="button-row">
+          <a class="primary" data-install-shortcut href="https://www.icloud.com/shortcuts/f1398aa7b7374e6186c4d20eb1465004">安装项目档案</a>
+          <a class="outline" data-open-archive href="#">打开项目档案</a>
+          <button class="quiet" id="demo-button" type="button">看看示例</button>
+        </div>
       </div>
       <div class="welcome-preview" aria-hidden="true"><span class="preview-folder"></span><strong>我的第一个项目</strong><span class="muted">每个文件，都有来时的记录</span><div class="preview-entry"><i></i><div><b>方案确认.pdf</b><small>11 月 8 日 · 10:26:35</small></div></div><div class="preview-entry"><i></i><div><b>第一版设计.jpg</b><small>11 月 7 日 · 16:08:12</small></div></div></div>
     </section>
@@ -44,8 +49,37 @@
     <footer><span id="offline-state">正在准备离线访问…</span><span>记录属于你</span></footer>
   </main>
   <input id="catalog-file" type="file" accept=".json,application/json" hidden>
-  <dialog id="setup"><form method="dialog"><div class="dialog-heading"><span class="eyebrow">只需要设置一次</span><button class="quiet close" aria-label="关闭" value="close">×</button></div><h2>连接自己的 iCloud</h2><p class="muted">三个快捷指令都选择同一个「项目档案」文件夹。新版不需要访问口令。</p><ol class="setup-steps"><li><strong>准备文件夹</strong><p>在「文件」App → iCloud 云盘，新建或选用「项目档案」文件夹。</p></li><li><strong>添加三个快捷指令</strong><p>归档指令下载后，在「文件」里轻点 ZIP 解压，再打开里面的快捷指令。按提示选择文件夹、填写下面的网址。</p><div class="download-links"><a href="./shortcuts/iCloud归档到项目-安装.zip" download="iCloud归档到项目-安装.zip">① 归档指令安装包 ↓</a><a href="./shortcuts/iCloud管理项目档案.shortcut" download="iCloud管理项目档案.shortcut">② 管理记录 ↓</a><a href="./shortcuts/iCloud打开项目原件.shortcut" download="iCloud打开项目原件.shortcut">③ 打开原件 ↓</a></div><div class="address"><code id="site-address"></code><button id="copy-address" type="button" class="quiet">复制网址</button></div></li><li><strong>添加到主屏幕</strong><p>用 Safari 打开本网页，点共享 → 添加到主屏幕。然后从主屏幕打开。</p></li></ol><p id="setup-message" class="muted"></p><div class="dialog-actions"><button class="outline" id="import-setup" type="button">已有 iCloud 清单</button><button class="primary" id="setup-done" type="button">已添加，开始使用</button></div></form></dialog>
-  <dialog id="guide"><form method="dialog"><div class="dialog-heading"><span class="eyebrow">随手归档，随时回看</span><button class="quiet close" aria-label="关闭">×</button></div><h2>怎么使用项目档案</h2><ol class="setup-steps"><li><strong>存入文件</strong><p>在「文件」或微信的系统共享面板中，选择「iCloud归档到项目」。每次分享一个文件，选择项目和显示名称。</p></li><li><strong>回看进度</strong><p>保存后会打开网页并更新完整时间线。项目时间线按归档时间排列，可搜索名称和文件说明。</p></li><li><strong>找到原件</strong><p>点记录中的「打开原件」，由快捷指令从自己的 iCloud 文件夹中取回文件。</p></li><li><strong>换设备或补齐记录</strong><p>点「从 iCloud 更新清单」，在「项目档案」文件夹中选择「项目档案清单.json」。网页不会自动读取整个云盘。</p></li></ol><p class="muted">原件保存在「原件」子文件夹，清单保存在根目录。先在一台设备上归档；切换设备时，等待 iCloud 同步完成再操作。网页里的记录是本机副本。</p><div class="dialog-actions"><button id="reconfigure" class="outline" type="button">快捷指令设置</button><button class="primary">知道了</button></div></form></dialog>
-  <dialog id="editor"><form id="editor-form"><h2 id="editor-title"></h2><label id="name-label" for="editor-name">项目名称</label><input id="editor-name" required maxlength="255" autocomplete="off"><div id="note-field" hidden><label for="editor-note">文件说明（可选）</label><textarea id="editor-note" rows="3" maxlength="2000" placeholder="这份文件记录了什么进展？"></textarea></div><p class="muted editor-tip">保存时会打开「iCloud管理项目档案」，由它写入你的 iCloud 清单。</p><p class="status" id="editor-status" role="status"></p><div class="dialog-actions"><button class="outline" id="cancel-edit" type="button">取消</button><button class="primary" type="submit">保存到 iCloud</button></div></form></dialog>
+  <dialog id="setup">
+    <form method="dialog">
+      <div class="dialog-heading"><h2>安装项目档案</h2><button class="quiet close" aria-label="关闭" value="close">×</button></div>
+      <p class="muted">添加快捷指令时，选择 iCloud 云盘里的「项目档案」文件夹。已有档案就选原来的文件夹。</p>
+      <div class="dialog-actions">
+        <a class="primary" data-install-shortcut href="https://www.icloud.com/shortcuts/f1398aa7b7374e6186c4d20eb1465004">安装快捷指令</a>
+        <a class="outline" data-open-archive href="#">打开项目档案</a>
+      </div>
+      <details class="setup-help">
+        <summary>备用安装与恢复</summary>
+        <p class="muted">下载 ZIP 后，在「文件」中解压并打开里面的快捷指令。</p>
+        <div class="button-row">
+          <a class="quiet" href="./shortcuts/iCloud项目档案-安装.zip" download>下载安装包</a>
+          <button class="quiet" id="import-setup" type="button">从 iCloud 导入清单</button>
+          <button class="quiet" id="setup-done" type="button">使用已安装的旧版</button>
+        </div>
+      </details>
+    </form>
+  </dialog>
+  <dialog id="guide">
+    <form method="dialog">
+      <div class="dialog-heading"><h2>使用项目档案</h2><button class="quiet close" aria-label="关闭" value="close">×</button></div>
+      <ol class="setup-steps">
+        <li><strong>归档文件</strong><p>在「文件」或微信的系统共享菜单里选「iCloud项目档案」，再选项目。保存后会打开完整时间线。</p></li>
+        <li><strong>查找和修改</strong><p>在项目里搜索文件名或说明。点「打开原件」查看文件，点「编辑」修改名称和说明。</p></li>
+        <li><strong>打开已有档案</strong><p>运行「iCloud项目档案」快捷指令，即可从已选的 iCloud 文件夹打开项目列表。</p></li>
+      </ol>
+      <p class="muted">想从桌面进入，可在 Safari 的共享菜单选择「添加到主屏幕」。</p>
+      <div class="dialog-actions"><button id="reconfigure" class="outline" type="button">安装与设置</button><button class="primary">知道了</button></div>
+    </form>
+  </dialog>
+  <dialog id="editor"><form id="editor-form"><h2 id="editor-title"></h2><label id="name-label" for="editor-name">项目名称</label><input id="editor-name" required maxlength="255" autocomplete="off"><div id="note-field" hidden><label for="editor-note">文件说明（可选）</label><textarea id="editor-note" rows="3" maxlength="2000" placeholder="这份文件记录了什么进展？"></textarea></div><p class="muted editor-tip">快捷指令会将修改写入你的 iCloud 清单。</p><p class="status" id="editor-status" role="status"></p><div class="dialog-actions"><button class="outline" id="cancel-edit" type="button">取消</button><button class="primary" type="submit">保存到 iCloud</button></div></form></dialog>
 </body>
 </html>
