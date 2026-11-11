@@ -1,7 +1,8 @@
-const CACHE = 'project-archive-icloud-v2-2';
+const CACHE = 'project-archive-icloud-v2-3';
 const ASSETS = ['./', './index.html', './app.css', './app.js', './catalog.js', './store.js', './manifest.webmanifest', './icon.svg', './icon.png', './shortcuts/iCloud归档到项目.shortcut', './shortcuts/iCloud管理项目档案.shortcut', './shortcuts/iCloud打开项目原件.shortcut'];
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
+  const requests = ASSETS.map(path => new Request(path, { cache: 'reload' }));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(requests)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('project-archive-icloud-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));

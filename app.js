@@ -118,7 +118,8 @@ function openEditor(record = null) {
 }
 
 async function handleCallback() {
-  const hash = new URLSearchParams(location.hash.slice(1));
+  // Shortcuts leaves Base64 plus signs unescaped, and URLSearchParams treats them as spaces.
+  const hash = new URLSearchParams(location.hash.slice(1).replaceAll('+', '%2B'));
   if (!hash.has('event')) return;
   const encoded = hash.get('event');
   history.replaceState(null, '', location.pathname + location.search);
