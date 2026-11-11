@@ -1,5 +1,5 @@
 import { applyEvent, CATALOG_NAME, decodeEvent, emptyCatalog, normalizeCatalog, recordsFor, SCHEMA, shortcutURL } from './catalog.js';
-import { readCatalog, writeCatalog } from './store.js';
+import { readCatalog, updateCatalog } from './store.js';
 
 const $ = id => document.getElementById(id);
 const archiveName = 'iCloud归档到项目';
@@ -126,8 +126,8 @@ async function handleCallback() {
   try {
     if (demo) { demo = false; catalog = savedCatalog; }
     const event = decodeEvent(encoded);
-    const next = applyEvent(catalog, event);
-    await writeCatalog(next); catalog = next; configured = true;
+    catalog = await updateCatalog(current => applyEvent(current, event));
+    configured = true;
     localStorage.setItem('archive-configured', 'yes');
     activeProject = event.project_id;
     $('search').value = ''; render();
@@ -146,7 +146,7 @@ $('catalog-file').addEventListener('change', async event => {
   try {
     if (file.size > 20 * 1024 * 1024) throw new Error('这份清单超过 20MB，请先保留文件并联系维护者处理。');
     const next = normalizeCatalog(JSON.parse(await file.text()));
-    await writeCatalog(next); catalog = next;
+    catalog = await updateCatalog(() => next);
     for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
     render(); notice('已从所选清单更新 ' + Object.keys(next.projects).length + ' 个项目、' + Object.keys(next.records).length + ' 条记录。');
   } catch (error) { notice(error instanceof SyntaxError ? '请选择「项目档案清单.json」，这份文件不是有效的清单。' : error.message, true); }

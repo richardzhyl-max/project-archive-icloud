@@ -23,14 +23,23 @@ export async function readCatalog() {
   });
 }
 
-export async function writeCatalog(value) {
-  const catalog = normalizeCatalog(value);
+export async function updateCatalog(update) {
   const db = await database();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('archive', 'readwrite');
-    transaction.objectStore('archive').put(catalog, 'catalog');
+    const store = transaction.objectStore('archive');
+    const request = store.get('catalog');
+    let catalog, updateError;
+    request.onsuccess = () => {
+      try {
+        catalog = normalizeCatalog(update(request.result ?? emptyCatalog()));
+        store.put(catalog, 'catalog');
+      } catch (error) {
+        updateError = error;
+        transaction.abort();
+      }
+    };
     transaction.oncomplete = () => resolve(catalog);
-    transaction.onerror = () => reject(new Error('本机记录未保存，请保留 iCloud 清单并重新导入。'));
-    transaction.onabort = () => reject(new Error('本机保存已中断，请重新导入 iCloud 清单。'));
+    transaction.onabort = () => reject(updateError ?? new Error('本机记录未保存，请保留 iCloud 清单并重新导入。'));
   });
 }

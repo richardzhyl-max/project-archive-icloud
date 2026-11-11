@@ -1,4 +1,4 @@
-const CACHE = 'project-archive-icloud-v2-3';
+const CACHE = 'project-archive-icloud-v2-4';
 const ASSETS = ['./', './index.html', './app.css', './app.js', './catalog.js', './store.js', './manifest.webmanifest', './icon.svg', './icon.png', './shortcuts/iCloud归档到项目.shortcut', './shortcuts/iCloud管理项目档案.shortcut', './shortcuts/iCloud打开项目原件.shortcut'];
 self.addEventListener('install', event => {
   const requests = ASSETS.map(path => new Request(path, { cache: 'reload' }));
