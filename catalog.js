@@ -1,5 +1,6 @@
 export const SCHEMA = 'project-archive/2';
 export const CATALOG_NAME = '项目档案清单.json';
+export const MAX_CATALOG_BYTES = 20 * 1024 * 1024;
 const idPattern = /^[a-zA-Z0-9_-]{1,90}$/;
 
 export function emptyCatalog() {
@@ -96,6 +97,51 @@ export function decodeEvent(encoded) {
     const bytes = Uint8Array.from(atob(encoded.replace(/\s/g, '')), char => char.charCodeAt(0));
     return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
   } catch { throw new Error('归档结果无法读取，请从 iCloud 导入清单。'); }
+}
+
+export async function decodeSnapshot(encoded) {
+  try {
+    const maxTarBytes = MAX_CATALOG_BYTES + 16 * 1024;
+    if (encoded.length > 4 * Math.ceil((maxTarBytes + 65536) / 3)) throw new Error();
+    const compressed = Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
+    const reader = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
+    const chunks = [];
+    let length = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > maxTarBytes) {
+        await reader.cancel();
+        throw new Error();
+      }
+      chunks.push(value);
+    }
+    const tar = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) { tar.set(chunk, offset); offset += chunk.byteLength; }
+
+    // Shortcuts makes a tar.gz containing one ASCII-named catalog file.
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    const name = decoder.decode(tar.subarray(0, 100)).split('\0', 1)[0];
+    const sizeField = decoder.decode(tar.subarray(124, 136)).replaceAll('\0', '').trim();
+    const size = /^[0-7]+$/.test(sizeField) ? parseInt(sizeField, 8) : NaN;
+    if (name !== 'catalog.json' || ![0, 48].includes(tar[156]) ||
+        !Number.isSafeInteger(size) || size > MAX_CATALOG_BYTES || 512 + size > length) throw new Error();
+    return normalizeCatalog(JSON.parse(decoder.decode(tar.subarray(512, 512 + size))));
+  } catch {
+    throw new Error('完整清单未能读取。可以从 iCloud 更新清单。');
+  }
+}
+
+export function applySnapshot(current, snapshot) {
+  const projects = new Set(Object.values(snapshot.projects));
+  const records = { ...snapshot.records };
+  // An older return can finish after a newer archive. Keep records already seen for the same projects.
+  for (const [id, record] of Object.entries(current.records)) {
+    if (projects.has(record.project_id) && !Object.hasOwn(records, id)) records[id] = record;
+  }
+  return { ...snapshot, records };
 }
 
 export function recordsFor(catalog, projectId, query = '') {

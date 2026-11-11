@@ -1,4 +1,4 @@
-import { applyEvent, CATALOG_NAME, decodeEvent, emptyCatalog, normalizeCatalog, recordsFor, SCHEMA, shortcutURL } from './catalog.js';
+import { applyEvent, applySnapshot, CATALOG_NAME, decodeEvent, decodeSnapshot, emptyCatalog, MAX_CATALOG_BYTES, normalizeCatalog, recordsFor, SCHEMA, shortcutURL } from './catalog.js';
 import { readCatalog, updateCatalog } from './store.js';
 
 const $ = id => document.getElementById(id);
@@ -120,18 +120,29 @@ function openEditor(record = null) {
 async function handleCallback() {
   // Shortcuts leaves Base64 plus signs unescaped, and URLSearchParams treats them as spaces.
   const hash = new URLSearchParams(location.hash.slice(1).replaceAll('+', '%2B'));
-  if (!hash.has('event')) return;
-  const encoded = hash.get('event');
+  if (!hash.has('snapshot') && !hash.has('event')) return;
   history.replaceState(null, '', location.pathname + location.search);
   try {
     if (demo) { demo = false; catalog = savedCatalog; }
-    const event = decodeEvent(encoded);
-    catalog = await updateCatalog(current => applyEvent(current, event));
+    let projectId, message;
+    if (hash.has('snapshot')) {
+      const snapshot = await decodeSnapshot(hash.get('snapshot'));
+      const recordId = hash.get('record');
+      if (!Object.hasOwn(snapshot.records, recordId)) throw new Error('清单中缺少本次归档记录。');
+      projectId = snapshot.records[recordId].project_id;
+      catalog = await updateCatalog(current => applySnapshot(current, snapshot));
+      message = '归档成功，已更新完整时间线。';
+    } else {
+      const event = decodeEvent(hash.get('event'));
+      catalog = await updateCatalog(current => applyEvent(current, event));
+      projectId = event.project_id;
+      message = event.type === 'record' ? '已收到归档记录。原件和清单由快捷指令保存在你的 iCloud 文件夹。' : '项目记录已更新。';
+    }
     configured = true;
     localStorage.setItem('archive-configured', 'yes');
-    activeProject = event.project_id;
+    activeProject = projectId;
     $('search').value = ''; render();
-    notice(event.type === 'record' ? '已收到归档记录。原件和清单由快捷指令保存在你的 iCloud 文件夹。' : '项目记录已更新。');
+    notice(message);
   } catch (error) { notice(error.message, true); }
 }
 
@@ -144,7 +155,7 @@ $('catalog-file').addEventListener('change', async event => {
   const file = event.target.files?.[0];
   if (!file) return;
   try {
-    if (file.size > 20 * 1024 * 1024) throw new Error('这份清单超过 20MB，请先保留文件并联系维护者处理。');
+    if (file.size > MAX_CATALOG_BYTES) throw new Error('这份清单超过 20MB，请先保留文件并联系维护者处理。');
     const next = normalizeCatalog(JSON.parse(await file.text()));
     catalog = await updateCatalog(() => next);
     for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
